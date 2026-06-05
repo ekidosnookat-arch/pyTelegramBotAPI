@@ -41,9 +41,9 @@ ICE_CREAMS = [
     {"id": 23, "name": "ДенНочУМУТ",           "dona": 30,  "box": 2100},
     {"id": 24, "name": "СмакУМУТ",       "dona": 30,  "box": 2100},
     {"id": 25, "name": "Брикет",          "dona": 0,  "box": 0},
-    {"id": 26, "name": "Смес1",             "dona": 1,  "box": 1300},
-    {"id": 27, "name": "Смес2",              "dona": 1,  "box": 1200},
-    {"id": 28, "name": "Смес3",     "dona": 1,  "box": 1600},
+    {"id": 26, "name": "Смес 1300",             "dona": 1,  "box": 1300},
+    {"id": 27, "name": "Смес 1200",              "dona": 1,  "box": 1200},
+    {"id": 28, "name": "Смес 1600",     "dona": 1,  "box": 1600},
 ]
 
 users = {}
@@ -127,10 +127,10 @@ def cmd_start(msg):
     uid = msg.from_user.id
     if uid == ADMIN_ID:
         is_open = True
-        bot.send_message(uid, "✅ Savdo ochildi! Mijozlar buyurtma bera oladi.")
+        bot.send_message(uid, "✅ Савдо очилди.")
         return
     if not is_open:
-        bot.send_message(uid, "🔒 Savdo yopiq. Ertaga keling!")
+        bot.send_message(uid, "🔒 Савдо ёпилди буюртмалар кейинрок уриниб коринг!")
         return
     user = get_user(uid)
     user["cart"] = []
