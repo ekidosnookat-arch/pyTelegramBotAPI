@@ -10,7 +10,6 @@ from telebot.types import (
 )
 from datetime import datetime
 
-import os
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID  = int(os.environ.get("ADMIN_ID"))
 
@@ -41,7 +40,7 @@ ICE_CREAMS = [
     {"id": 22, "name": "КаракумУМУТ",          "dona": 30,  "box": 2100},
     {"id": 23, "name": "ДенНочУМУТ",           "dona": 30,  "box": 2100},
     {"id": 24, "name": "СмакУМУТ",       "dona": 30,  "box": 2100},
-    {"id": 25, "name": "Брикет",          "dona": 00,  "box": 0000},
+    {"id": 25, "name": "Брикет",          "dona": 0,  "box": 0},
     {"id": 26, "name": "Смес1",             "dona": 1,  "box": 1300},
     {"id": 27, "name": "Смес2",              "dona": 1,  "box": 1200},
     {"id": 28, "name": "Смес3",     "dona": 1,  "box": 1600},
@@ -49,6 +48,7 @@ ICE_CREAMS = [
 
 users = {}
 all_orders = []
+is_open = True  # Savdo holati
 
 def get_user(uid):
     if uid not in users:
@@ -78,8 +78,8 @@ def catalog_kb(page=0):
 def type_kb(ic_id):
     ic = get_ic(ic_id)
     kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("🍦 1 штука — " + str(ic["dona"]) + " сум", callback_data="add|" + str(ic_id) + "|dona"))
-    kb.add(InlineKeyboardButton("📦 1 коробка — " + str(ic["box"]) + " сум", callback_data="add|" + str(ic_id) + "|box"))
+    kb.add(InlineKeyboardButton("🍦 1 штука — " + str(ic["dona"]) + " сом", callback_data="add|" + str(ic_id) + "|dona"))
+    kb.add(InlineKeyboardButton("📦 1 коробка — " + str(ic["box"]) + " сом", callback_data="add|" + str(ic_id) + "|box"))
     kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
     return kb
 
@@ -116,14 +116,22 @@ def format_cart(cart):
         ic = get_ic(item["id"])
         price = ic["dona"] if item["type"] == "dona" else ic["box"]
         t = "шт." if item["type"] == "dona" else "кор."
-        lines.append(str(i) + ". " + ic["name"] + " (" + t + ") — " + str(price) + " сум")
+        lines.append(str(i) + ". " + ic["name"] + " (" + t + ") — " + str(price) + " сом")
         total += price
-    lines.append("\nИтого: " + str(total) + " сум")
+    lines.append("\nИтого: " + str(total) + " сом")
     return "\n".join(lines)
 
 @bot.message_handler(commands=["start"])
 def cmd_start(msg):
+    global is_open
     uid = msg.from_user.id
+    if uid == ADMIN_ID:
+        is_open = True
+        bot.send_message(uid, "✅ Savdo ochildi! Mijozlar buyurtma bera oladi.")
+        return
+    if not is_open:
+        bot.send_message(uid, "🔒 Savdo yopiq. Ertaga keling!")
+        return
     user = get_user(uid)
     user["cart"] = []
     user["step"] = "catalog"
@@ -134,6 +142,38 @@ def cmd_start(msg):
         "Выберите понравившийся вкус 👇",
         reply_markup=catalog_kb(0))
 
+@bot.message_handler(commands=["close"])
+def cmd_close(msg):
+    global is_open
+    if msg.from_user.id != ADMIN_ID:
+        bot.send_message(msg.chat.id, "⛔ Нет доступа.")
+        return
+    is_open = False
+    today = datetime.now().strftime("%d.%m.%Y")
+    todayos = [o for o in all_orders if o["date"] == today]
+    if not todayos:
+        bot.send_message(msg.chat.id, "🔒 Savdo yopildi.\n\n📊 Bugun buyurtma yo'q.")
+        return
+    total_sum = sum(o["total"] for o in todayos)
+    cash_sum = sum(o["total"] for o in todayos if o["payment"] == "Наличные")
+    credit_sum = sum(o["total"] for o in todayos if o["payment"] == "Рассрочка")
+    text = ("🔒 Savdo yopildi!\n\n"
+        "📊 Kunlik hisobot — " + today + "\n\n"
+        "📦 Buyurtmalar: " + str(len(todayos)) + "\n"
+        "💵 Naqd: " + str(cash_sum) + " сом\n"
+        "💳 Nasiya: " + str(credit_sum) + " сом\n"
+        "💰 Jami: " + str(total_sum) + " сом\n\n")
+    for idx, o in enumerate(todayos, 1):
+        items_str = ", ".join(
+            get_ic(i["id"])["name"] + " (" + ("шт." if i["type"]=="dona" else "кор.") + ")"
+            for i in o["cart"])
+        text += ("Buyurtma #" + str(idx) + " [" + o["time"] + "]\n"
+            + o["username"] + " | " + o["phone"] + "\n"
+            + o["address"] + "\n"
+            + items_str + "\n"
+            + str(o["total"]) + " сом (" + o["payment"] + ")\n\n")
+    bot.send_message(msg.chat.id, text)
+
 @bot.message_handler(commands=["report"])
 def cmd_report(msg):
     if msg.from_user.id != ADMIN_ID:
@@ -142,32 +182,37 @@ def cmd_report(msg):
     today = datetime.now().strftime("%d.%m.%Y")
     todayos = [o for o in all_orders if o["date"] == today]
     if not todayos:
-        bot.send_message(msg.chat.id, "📊 Сегодня заказов нет.")
+        bot.send_message(msg.chat.id, "📊 Bugun buyurtma yo'q.")
         return
     total_sum = sum(o["total"] for o in todayos)
     cash_sum = sum(o["total"] for o in todayos if o["payment"] == "Наличные")
     credit_sum = sum(o["total"] for o in todayos if o["payment"] == "Рассрочка")
-    text = ("📊 Отчёт — " + today + "\n\n"
-        "📦 Заказов: " + str(len(todayos)) + "\n"
-        "💵 Наличными: " + str(cash_sum) + " сум\n"
-        "💳 Рассрочка: " + str(credit_sum) + " сум\n"
-        "💰 Итого: " + str(total_sum) + " сум\n\n")
+    text = ("📊 Hisobot — " + today + "\n\n"
+        "📦 Buyurtmalar: " + str(len(todayos)) + "\n"
+        "💵 Naqd: " + str(cash_sum) + " сом\n"
+        "💳 Nasiya: " + str(credit_sum) + " сом\n"
+        "💰 Jami: " + str(total_sum) + " сом\n\n")
     for idx, o in enumerate(todayos, 1):
         items_str = ", ".join(
             get_ic(i["id"])["name"] + " (" + ("шт." if i["type"]=="dona" else "кор.") + ")"
             for i in o["cart"])
-        text += ("Заказ #" + str(idx) + " [" + o["time"] + "]\n"
+        text += ("Buyurtma #" + str(idx) + " [" + o["time"] + "]\n"
             + o["username"] + " | " + o["phone"] + "\n"
             + o["address"] + "\n"
             + items_str + "\n"
-            + str(o["total"]) + " сум (" + o["payment"] + ")\n\n")
+            + str(o["total"]) + " сом (" + o["payment"] + ")\n\n")
     bot.send_message(msg.chat.id, text)
 
 @bot.callback_query_handler(func=lambda c: True)
 def on_callback(call):
+    global is_open
     uid = call.from_user.id
     user = get_user(uid)
     data = call.data
+
+    if not is_open and uid != ADMIN_ID:
+        bot.answer_callback_query(call.id, "🔒 Savdo yopiq!", show_alert=True)
+        return
 
     if data.startswith("pg|"):
         page = int(data.split("|")[1])
@@ -180,8 +225,8 @@ def on_callback(call):
         ic = get_ic(ic_id)
         bot.edit_message_text(
             "🍦 " + ic["name"] + "\n\n"
-            "• 1 штука — " + str(ic["dona"]) + " сум\n"
-            "• 1 коробка — " + str(ic["box"]) + " сум\n\n"
+            "• 1 штука — " + str(ic["dona"]) + " сом\n"
+            "• 1 коробка — " + str(ic["box"]) + " сом\n\n"
             "Как хотите купить?",
             uid, call.message.message_id, reply_markup=type_kb(ic_id))
 
@@ -280,13 +325,13 @@ def finish_order(uid, call, payment):
         "  • " + get_ic(i["id"])["name"] + " (" + ("шт." if i["type"]=="dona" else "кор.") + ")"
         for i in cart)
     bot.send_message(ADMIN_ID,
-        "🔔 Новый заказ!\n\n"
+        "🔔 Yangi buyurtma!\n\n"
         "👤 " + order["username"] + "\n"
         "📱 " + phone + "\n"
         "📍 " + addr + "\n"
         "💰 " + payment + " | 🕐 " + order["time"] + "\n\n"
-        "🛒 Товары:\n" + items_str + "\n\n"
-        "💵 Итого: " + str(total) + " сум")
+        "🛒 Mahsulotlar:\n" + items_str + "\n\n"
+        "💵 Jami: " + str(total) + " сом")
     user["cart"] = []
     user["step"] = "catalog"
 
