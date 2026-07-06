@@ -48,6 +48,7 @@ ICE_CREAMS = [
     {"id": 28, "name": "Газета",       "dona": 35,  "box": 700},
     {"id": 29, "name": "СмакУМУТ",       "dona": 30,  "box": 2100},
     {"id": 30, "name": "Брикет",           "dona": 25,  "box": 1400},
+     {"id": 31, "name": "Каракум Supremo",           "dona": 30,  "box": 2160},
 ]
 
 users = {}
