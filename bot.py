@@ -1,4 +1,7 @@
 import os
+import math
+from datetime import datetime
+
 print("Kutubxona tekshirilmoqda...")
 os.system("pip install pyTelegramBotAPI")
 print("Tayyor!")
@@ -8,7 +11,6 @@ from telebot.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 )
-from datetime import datetime
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID  = int(os.environ.get("ADMIN_ID"))
@@ -17,36 +19,35 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 ICE_CREAMS = [
     {"id":  1, "name": "БаблГам",  "dona": 15,  "box": 1200},
-    {"id":  2, "name": "О эскимо",             "dona": 15,  "box": 1200},
-    {"id":  3, "name": "О эскимо шоколад",             "dona": 25,  "box": 1750},
-    {"id":  4, "name": "Каракум",              "dona": 16,  "box": 1280},
+    {"id":  2, "name": "О эскимо",              "dona": 15,  "box": 1200},
+    {"id":  3, "name": "О эскимо шоколад",              "dona": 25,  "box": 1750},
+    {"id":  4, "name": "Каракум",               "dona": 16,  "box": 1280},
     {"id":  5, "name": "Дыня",            "dona": 15,  "box": 1200},
     {"id":  6, "name": "Анар",            "dona": 15,  "box": 1200},
     {"id":  7, "name": "Малина",               "dona": 15,  "box": 1200},
-    {"id":  8, "name": "БигБум",              "dona": 33,  "box": 825},
-    {"id":  9, "name": "Ягодка",              "dona": 15,  "box": 1080},
-    {"id": 10, "name": "Мега",              "dona": 27,  "box": 1890},
+    {"id":  8, "name": "БигБум",               "dona": 33,  "box": 825},
+    {"id":  9, "name": "Ягодка",               "dona": 15,  "box": 1080},
+    {"id": 10, "name": "Мега",               "dona": 27,  "box": 1890},
     {"id": 11, "name": "Мишаня",               "dona": 25,  "box": 1750},
     {"id": 12, "name": "Московский",              "dona": 21,  "box": 1470},
     {"id": 13, "name": "Бест",               "dona": 25,  "box": 1750},
-    {"id": 14, "name": "ЛедКола",                 "dona": 7.5,  "box": 900},
+    {"id": 14, "name": "ЛедКола",                  "dona": 7.5,  "box": 900},
     {"id": 15, "name": "ЛедАнар",               "dona": 7.5,  "box": 900},
     {"id": 16, "name": "ЛедСветафор",           "dona": 7.5,  "box": 900},
-    {"id": 17, "name": "ЛедЭнержи",                 "dona": 7.5,  "box": 900},
-    {"id": 18, "name": "Снежинка",             "dona": 15,  "box": 1200},
+    {"id": 17, "name": "ЛедЭнержи",                  "dona": 7.5,  "box": 900},
+    {"id": 18, "name": "Снежинка",              "dona": 15,  "box": 1200},
     {"id": 19, "name": "Конус",               "dona": 7.5,  "box": 750},
     {"id": 20, "name": "Гномик",               "dona": 7.5,  "box": 630},
     {"id": 21, "name": "Малина",       "dona": 15,  "box": 1200},
     {"id": 22, "name": "КаракумУМУТ",          "dona": 30,  "box": 2100},
     {"id": 23, "name": "ДенНочУМУТ",           "dona": 30,  "box": 2100},
-      {"id": 24, "name": "Шакир УМУТ",       "dona": 28,  "box": 2016},
-      {"id": 25, "name": "ЛенинградУМУТ",       "dona": 20,  "box": 1440},
-      {"id": 26, "name": "ЛенинградКИЛОЛИК",       "dona": 250,  "box": 250},
-      {"id": 27, "name": "999",       "dona": 250,  "box": 250},
-      {"id": 28, "name": "Газета",       "dona": 35,  "box": 700},
+    {"id": 24, "name": "Шакир УМУТ",       "dona": 28,  "box": 2016},
+    {"id": 25, "name": "ЛенинградУМУТ",       "dona": 20,  "box": 1440},
+    {"id": 26, "name": "ЛенинградКИЛОЛИК",       "dona": 250,  "box": 250},
+    {"id": 27, "name": "999",       "dona": 250,  "box": 250},
+    {"id": 28, "name": "Газета",       "dona": 35,  "box": 700},
     {"id": 29, "name": "СмакУМУТ",       "dona": 30,  "box": 2100},
-    {"id": 30, "name": "Брикет",          "dona": 25,  "box": 1400},
-   
+    {"id": 30, "name": "Брикет",           "dona": 25,  "box": 1400},
 ]
 
 users = {}
@@ -64,16 +65,24 @@ def get_ic(ic_id):
 def catalog_kb(page=0):
     per_page = 7
     start = page * per_page
-    end = min(start + per_page, 28)
+    total_products = len(ICE_CREAMS)
+    end = min(start + per_page, total_products)
+    
+    total_pages = math.ceil(total_products / per_page)
+    
     kb = InlineKeyboardMarkup(row_width=1)
     for ic in ICE_CREAMS[start:end]:
         kb.add(InlineKeyboardButton("🍦 " + ic["name"], callback_data="ic|" + str(ic["id"])))
+        
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton("⬅️", callback_data="pg|" + str(page-1)))
-    nav.append(InlineKeyboardButton(str(page+1) + "/4", callback_data="noop"))
-    if end < 28:
+        
+    nav.append(InlineKeyboardButton(f"{page+1}/{total_pages}", callback_data="noop"))
+    
+    if end < total_products:
         nav.append(InlineKeyboardButton("➡️", callback_data="pg|" + str(page+1)))
+        
     kb.row(*nav)
     kb.add(InlineKeyboardButton("🛒 Корзина", callback_data="cart"))
     return kb
@@ -139,9 +148,11 @@ def cmd_start(msg):
     user["cart"] = []
     user["step"] = "catalog"
     user["page"] = 0
+    
+    total_products = len(ICE_CREAMS)
     bot.send_message(uid,
-        "👋 Добро пожаловать в магазин мороженого!\n\n"
-        "У нас 28 видов вкуснейшего мороженого 🍦\n"
+        f"👋 Добро пожаловать в магазин мороженого!\n\n"
+        f"У нас {total_products} видов вкуснейшего мороженого 🍦\n"
         "Выберите понравившийся вкус 👇",
         reply_markup=catalog_kb(0))
 
